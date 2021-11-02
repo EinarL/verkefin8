@@ -1,5 +1,8 @@
-// TODO hér vantar að sækja viðeigandi föll úr öðrum modules
 import { show } from './lib/ui.js';
+import { createButtons } from './lib/ui.js';
+import { updateResultScreen } from './lib/ui.js';
+import { checkGame } from './lib/rock-paper-scissors.js';
+import { computerPlay } from './lib/rock-paper-scissors.js';
 
 /** Hámarks fjöldi best-of leikja, ætti að vera jákvæð heiltala stærri en 0 */
 const MAX_BEST_OF = 10;
@@ -8,7 +11,7 @@ const MAX_BEST_OF = 10;
 let totalRounds;
 
 /** Númer umferðar í núverandi umferð */
-let currentRound;
+let currentRound = 0;
 
 /** Sigrar spilara í núverandi umferð */
 let playerWins = 0;
@@ -16,11 +19,7 @@ let playerWins = 0;
 /** Töp spilara í núverandi umferð */
 let computerWins = 0;
 
-/**
- * Fjöldi sigra spilara í öllum leikjum. Gætum reiknað útfrá `games` en til
- * einföldunar höldum við utan um sérstaklega.
- */
-let totalWins = 0;
+let wasTied = false;
 
 /**
  * Utanumhald um alla spilaða leiki, hver leikur er geymdur á forminu:
@@ -43,33 +42,56 @@ const games = [];
  *
  * @param {number} player Það sem spilari spilaði
  */
-function playRound(player) {
-  // Komumst að því hvað tölva spilaði og athugum stöðu leiks
+function playRound(playerChose) {
+  let compChose = computerPlay();
+  let result = checkGame(playerChose, compChose);
 
-  // Uppfærum result glugga áður en við sýnum, hér þarf að importa falli
-  updateResultScreen({
-    player: player.toString(),
-    computer,
+  switch(result){
+    case 1:
+      result = 'Þú sigrar';
+      if(!wasTied){
+        currentRound++;
+      }
+      wasTied = false;
+      playerWins++;
+      break;
+    case 0:
+      result = 'Jafntefli';
+      if(!wasTied){
+        currentRound++;
+        wasTied = true;
+      }
+      break;
+    case -1:
+      result = 'Tölvan sigrar';
+      if(!wasTied){
+        currentRound++;
+      }
+      wasTied = false;
+      computerWins++;
+  }
+  const finishGame = document.querySelector('button.finishGame');
+  const nextRound = document.querySelector('button.nextRound');
+  finishGame.classList.add('hidden');
+  nextRound.classList.add('hidden');
+  if( playerWins >= Math.ceil(totalRounds/2) || computerWins >= Math.ceil(totalRounds/2)){ // sýnir takkana
+    finishGame.classList.remove('hidden');
+  }else{
+    nextRound.classList.remove('hidden');
+  }
+  updateResultScreen(
+    playerChose,
+    compChose,
     result,
     currentRound,
     totalRounds,
     playerWins,
-    computerWins,
-  });
-
-  // Uppfærum teljara ef ekki jafntefli, verðum að gera eftir að við setjum titil
-
-  // Ákveðum hvaða takka skuli sýna
-
-  // Sýnum niðurstöðuskjá
+    computerWins
+  );
 }
 
-/**
- * Fall sem bregst við því þegar smellt er á takka fyrir fjölda umferða
- * @param {Event} e Upplýsingar um atburð
- */
-function round(e) {
-  // TODO útfæra
+export function roundsAmount(amount){
+  totalRounds = amount;
 }
 
 // Takki sem byrjar leik
@@ -78,28 +100,87 @@ document
   .addEventListener('click', () => show('rounds'));
 
 // Búum til takka
-// createButtons(MAX_BEST_OF, round);
+totalRounds = createButtons(MAX_BEST_OF, 'play');
+
+// takki sem spilar næsta round
+document
+  .querySelector('button.nextRound')
+  .addEventListener('click', () => show('play'));
+
+// takki sem fer í næsta leik
+document
+.querySelector('button.finishGame')
+.addEventListener('click', () => {
+  finishGame();
+  show('rounds');
+});
 
 // Event listeners fyrir skæri, blað, steinn takka
-// TODO
-document.querySelector('button.scissor')
+document.querySelector('button.scissor').addEventListener('click', () => {
+  show('result');
+  playRound('1');
+});
+document.querySelector('button.paper').addEventListener('click', () => {
+  show('result');
+  playRound('2');
+});
+document.querySelector('button.rock').addEventListener('click', () => {
+  show('result');
+  playRound('3');
+});
 
 /**
  * Uppfærir stöðu yfir alla spilaða leiki þegar leik lýkur.
  * Gerir tilbúið þannig að hægt sé að spila annan leik í framhaldinu.
  */
 function finishGame() {
+  let win = false;
+  let winText;
+  let text;
+  let liTag;
+  let parent;
+  let tagW = document.querySelector('.games__wins');
+  let playerW = tagW.textContent;
+  let tagL = document.querySelector('.games__losses');
+  let playerL = tagL.textContent;
+  if(playerWins > computerWins){ // player vinnur
+    playerW++;
+    tagW.textContent = playerW;
+    win = true;
+  }else{ // tölva vinnur
+    playerL++;
+    tagL.textContent = playerL;
+  }
+
+  document.querySelector('.games__played').textContent = +playerW + +playerL;
+
+  let percentWin = playerW/(+playerW + +playerL);
+  let percentLoss = playerL/(+playerW + +playerL);
+
+  document.querySelector('.games__winratio').textContent = (percentWin*100).toFixed(2);
+  document.querySelector('.games__lossratio').textContent = (percentLoss*100).toFixed(2);
+
   // Bætum við nýjasta leik
+  games.push({
+    playerWins,
+    computerWins,
+    win
+  });
 
-  // Uppfærum stöðu
+  if(win){
+    winText = "Þú vannst";
+  }else{
+    winText = "Tölva vann";
+  }
 
-  // Bætum leik við lista af spiluðum leikjum
+  text = document.createTextNode(winText + " " + playerWins + " - " + computerWins);
+  liTag = document.createElement("li");
+  liTag.appendChild(text);
+  parent = document.getElementsByClassName("games__list")[0];
+  parent.appendChild(liTag);
 
   // Núllstillum breytur
-
-  // Byrjum nýjan leik!
+  currentRound = 0;
+  playerWins = 0;
+  computerWins = 0;
 }
-
-// Næsta umferð og ljúka leik takkar
-document.querySelector('button.finishGame').addEventListener('click', finishGame);
-// TODO takki sem fer með í næstu umferð

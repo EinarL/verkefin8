@@ -2,17 +2,21 @@
   "name": "verkefni8",
   "version": "1.0.0",
   "description": "",
-  "main": "main.js",
+  "main": "scripts.js",
   "directories": {
     "lib": "lib"
   },
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "dev": "browser-sync start --server --files main.js **/*.js styles.css index.html"
   },
   "repository": {
     "type": "git",
     "url": "\u0016https://github.com/EinarL/verkefni8.git"
   },
   "author": "Einar",
-  "license": "ISC"
+  "license": "ISC",
+  "devDependencies": {
+    "browser-sync": "^2.27.5"
+  }
 }
